@@ -5,6 +5,7 @@ import {join,resolve,sep} from 'node:path';
 import {buildServer} from '../src/cloud/server.js';
 import {sha256} from '../src/shared/util.js';
 import type {RunSpec} from '../src/shared/types.js';
+import {CloudClient} from '../src/worker/main.ts';
 
 const spec:RunSpec={topic:'测试主题',sources:['pubmed','europepmc'],cutoffDate:'2026-10-13',language:'zh',modelProfile:'strong',budget:{maxTokens:10000,maxRequests:20,maxMinutes:30},scopeVersion:1,maxRepairRounds:3};
 const scratchRoot=resolve(process.cwd(),'work','cloud-tests');
@@ -19,6 +20,12 @@ async function setup(){
   const created=await app.inject({method:'POST',url:'/api/runs',headers:auth,payload:spec});assert.equal(created.statusCode,200);const run=created.json().run;
   return {app,auth,worker,otherWorker,run,advance:(n:number)=>{time+=n;},close:async()=>{await app.close();removeScratch(dir);}};
 }
+
+test('worker HTTP client claims and reads status through the actual JSON parser',async()=>{
+  const s=await setup();const env='PI_LITERATURE_TEST_WORKER_TOKEN';const previous=process.env[env];process.env[env]='worker-token-alice-long-value';
+  try{const url=await s.app.listen({host:'127.0.0.1',port:0});const client=new CloudClient({cloudUrl:url,workerId:'worker-a',workerTokenEnv:env} as any);const claimed=await client.call('/worker/claim');assert.equal(claimed.run.id,s.run.id);const status=await client.call(`/worker/runs/${s.run.id}/status`,'GET');assert.equal(status.status,'running');assert.equal(status.epoch,1);}
+  finally{if(previous===undefined)delete process.env[env];else process.env[env]=previous;await s.close();}
+});
 test('browser and worker credentials are distinct; ownership and unauthenticated downloads are enforced',async()=>{
   const s=await setup();try{
     assert.equal((await s.app.inject({method:'GET',url:'/api/runs',headers:s.worker})).statusCode,401);

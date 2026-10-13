@@ -3,6 +3,7 @@ import {Type} from 'typebox';
 import {LocalStore,BudgetExhausted,UnknownRequest,Semaphore} from '../src/worker/store.ts';
 import {PiKernel,jsonTool,type Transport} from '../src/worker/kernel.ts';
 import {remoteProjection} from '../src/worker/main.ts';
+import {acquireWorkerLock} from '../src/worker/lock.ts';
 import {validateEvidence,validateSynthesis} from '../src/worker/validation.ts';
 const profile={provider:'fixture',model:'fixture',apiKeyEnv:'',contextWindow:200000,maxOutputTokens:1000};
 const make=()=>{const dir=mkdtempSync(path.join(os.tmpdir(),'pi-lit-test-'));return {dir,store:new LocalStore(dir,'test_run',1,{maxTokens:100000,maxRequests:10,maxMinutes:10})};};
@@ -14,3 +15,4 @@ test('orphan completed provider responses replay after result-cache loss without
 test('request control boundary prevents model requests after lease loss',async()=>{const {dir,store}=make();let calls=0;try{const kernel=new PiKernel(store,profile,new Semaphore(1),async()=>{calls++;throw Error('must not run');},async()=>{throw Error('lease lost');});await assert.rejects(kernel.execute('auditor','a',{},'JSON'),/lease lost/);assert.equal(calls,0);assert.equal(store.usage().requests,0);}finally{store.close();rmSync(dir,{recursive:true,force:true});}});
 test('semaphore limits concurrent requests without oversubscribing queued callers',async()=>{const pool=new Semaphore(2);let active=0,max=0;await Promise.all(Array.from({length:8},()=>pool.run(async()=>{active++;max=Math.max(max,active);await new Promise(r=>setTimeout(r,5));active--;})));assert.equal(max,2);});
 test('remote projection removes source paths and uncited fulltext',()=>{const b:any={documents:[{path:'private/source.xml',spans:[{id:'s1',text:'a'.repeat(3000),imagePath:'private/page.png'},{id:'s2',text:'uncited'}]}],claims:[{spanIds:['s1']}],paradigms:[],findings:[]};const remote=remoteProjection(b);assert.equal(remote.documents[0].path,'');assert.equal(remote.documents[0].spans.length,1);assert.equal(remote.documents[0].spans[0].text.length,2500);assert.equal(remote.documents[0].spans[0].imagePath,undefined);});
+test('live worker lock prevents duplicate local executors and releases only its own lock',()=>{const dir=mkdtempSync(path.join(os.tmpdir(),'pi-lit-lock-'));try{const release=acquireWorkerLock(dir);assert.throws(()=>acquireWorkerLock(dir),/already running/);release();const again=acquireWorkerLock(dir);again();}finally{rmSync(dir,{recursive:true,force:true});}});

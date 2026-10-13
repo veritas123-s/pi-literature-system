@@ -11,3 +11,4 @@ web/dist/
 work/
 data/
 *.env
+web/fixtures/

@@ -2,6 +2,8 @@
 
 输入医学与生命科学研究主题，系统自动检索、阅读原文、建立证据关联、归纳研究范式并核验报告。GitHub Pages 是远程控制台，云端保留队列和私有成果，Windows 执行端承担模型与文献处理。电脑离线时任务等待，不显示为继续执行。
 
+已部署工作台：https://veritas123-s.github.io/pi-literature-system/ 。云端：https://122.51.44.155/literature 。当前Windows执行端已配对并后台运行，登录工作台即可创建任务。科学质量目标仍需独立评估。
+
 ## 安装与运行
 
 需要 Node.js 22.19 或更新版本、Python（pdfplumber、pypdfium2、reportlab）和中文字体。项目锁定 Pi 1.0.2。
@@ -25,6 +27,8 @@ npm run research -- --topic "研究主题" --focus "关注的问题"
 ## 远程使用
 
 部署云服务并配置 GitHub OAuth 后，在网页完成登录、配对执行端。执行端凭据只在配对时返回一次，放入本机环境变量 `PI_LITERATURE_WORKER_TOKEN`，配置 workerId/cloudUrl，再运行 `npm run worker`。凭据不进入 GitHub 或浏览器永久存储。
+
+当前电脑已保存受限的 `runtime/worker-token.dpapi`，只有同一Windows用户可以解密。双击 `Start-Pi-Literature.cmd` 可重新启动后台执行端；已运行时不会再开一个。此启动方式不更改系统执行策略。电脑重启后需重新启动；休眠或短时断网恢复后，仍存活的执行端会继续连接。其他电脑需重新配对。
 
 网页新建任务先保留草稿，资料上传完成后才启动。运行中补资料先暂停，待执行端确认后上传，再继续。调整范围产生新版本，保留旧证据和报告。暂停在安全边界停止新增调用，取消会终止在途调用；取消和断网可能留下未知用量。
 

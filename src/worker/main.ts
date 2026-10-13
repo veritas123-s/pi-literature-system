@@ -9,10 +9,11 @@ import {loadConfig} from './config.ts';
 import {LocalStore,Semaphore} from './store.ts';
 import {PiKernel} from './kernel.ts';
 import {ResearchPipeline} from './pipeline.ts';
+import {acquireWorkerLock} from './lock.ts';
 
 export class CloudClient {
   constructor(public config:WorkerConfig){if(!config.cloudUrl||!config.workerId||!config.workerTokenEnv||!process.env[config.workerTokenEnv])throw new Error('Worker pairing is missing');}
-  async call<T=any>(url:string,method='POST',body?:unknown,headers:Record<string,string>={}):Promise<T>{const response=await fetch(this.config.cloudUrl!.replace(/\/$/,'')+url,{method,headers:{Authorization:'Bearer '+process.env[this.config.workerTokenEnv!],...(body instanceof Uint8Array?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:body instanceof Uint8Array?new Uint8Array(body).buffer:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error('Cloud request failed HTTP '+response.status+' '+url);return response.json() as Promise<T>;}
+  async call<T=any>(url:string,method='POST',body?:unknown,headers:Record<string,string>={}):Promise<T>{const response=await fetch(this.config.cloudUrl!.replace(/\/$/,'')+url,{method,headers:{Authorization:'Bearer '+process.env[this.config.workerTokenEnv!],...(body===undefined||body instanceof Uint8Array?{}:{'Content-Type':'application/json'}),...headers},body:body===undefined?undefined:body instanceof Uint8Array?new Uint8Array(body).buffer:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error('Cloud request failed HTTP '+response.status+' '+url);return response.json() as Promise<T>;}
   async bytes(url:string):Promise<Uint8Array>{const response=await fetch(this.config.cloudUrl!.replace(/\/$/,'')+url,{headers:{Authorization:'Bearer '+process.env[this.config.workerTokenEnv!]},redirect:'error',signal:AbortSignal.timeout(120000)});if(!response.ok)throw new Error('File receive failed HTTP '+response.status);return new Uint8Array(await response.arrayBuffer());}
 }
 export function remoteProjection(bundle:ResearchBundle):ResearchBundle {
@@ -58,4 +59,4 @@ export async function runWorker(config:WorkerConfig,signal?:AbortSignal){
     else await delay(5000,undefined,{signal});
   }catch(e){if(signal?.aborted)break;console.error('执行端等待连接：'+(e as Error).message);await delay(5000,undefined,{signal});}}
 }
-if(process.argv[1]?.endsWith('main.ts')){const signal=new AbortController();process.on('SIGINT',()=>signal.abort());process.on('SIGTERM',()=>signal.abort());await runWorker(loadConfig(),signal.signal);}
+if(process.argv[1]?.endsWith('main.ts')){const config=loadConfig();const release=acquireWorkerLock(config.dataDir);const signal=new AbortController();process.on('SIGINT',()=>signal.abort());process.on('SIGTERM',()=>signal.abort());try{await runWorker(config,signal.signal);}finally{release();}}

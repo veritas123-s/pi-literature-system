@@ -8,7 +8,7 @@ async function api(url,method='GET',body){const r=await fetch('https://api.githu
 const user=await api('/user');if(user.login!=='veritas123-s')throw new Error('Unexpected GitHub owner');
 let remote;try{remote=await api(`/repos/${user.login}/${repo}`);}catch(e){if(!String(e).includes('404'))throw e;remote=await api('/user/repos','POST',{name:repo,description:'Pi 医学与生命科学文献调研系统',private:false,auto_init:false});}
 if(!existsSync('.git'))git(['init','-b','main']);
-git(['add','package.json','package-lock.json','tsconfig.json','.gitignore','AGENTS.md','README.md','VALIDATION.md','config.example.json','Start-Pi-Literature.ps1','src','web/src','web/index.html','web/vite.config.ts','web/README.md','test','scripts','docs','deploy','.github']);
+git(['add','package.json','package-lock.json','tsconfig.json','.gitignore','AGENTS.md','README.md','VALIDATION.md','config.example.json','Start-Pi-Literature.ps1','Start-Pi-Literature.cmd','src','web/src','web/index.html','web/vite.config.ts','web/README.md','test','scripts','docs','deploy','.github']);
 const staged=git(['diff','--cached','--name-only']).trim().split('\n').filter(Boolean);if(staged.some(p=>/^(work|runtime|data|node_modules)\//.test(p)||/config\.local|\.env$|\.sqlite/.test(p)))throw new Error('Private runtime file in staged export');
 if(staged.length)git(['-c','user.name=Zeus','-c','user.email=zeus@users.noreply.github.com','commit','-m','Implement Pi literature research system']);
 if(!git(['remote']).split('\n').includes('origin'))git(['remote','add','origin',remote.clone_url]);
