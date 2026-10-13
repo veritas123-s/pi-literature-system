@@ -19,6 +19,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm test
       - run: npm run build:web
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
