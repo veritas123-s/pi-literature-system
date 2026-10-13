@@ -8,7 +8,7 @@
 
 先登记日期、模型配置哈希、工具清单和预算。`runBenchmarkPairs(adapter, config)` 向适配器传递相同模型、相同工具、相同预算和同一个案例；单 Agent 使用一个 researcher 会话贯穿检索、提取、综合和自查，四 Agent 使用四类独立会话。适配器应使用项目的 PiKernel、原文读取工具和相同检索连接器，禁止给其中一组额外工具或提示隐藏答案。配对运行按案例串行执行，使用独立目录和证据存储，不共享模型会话与上游产物。必须保存真实模型用量及任务输出。
 
-运行接口只接收公开案例与执行设置；它不接收隐藏标签和人工评分表。当前尚无完成科学验收的模型适配器运行记录。也可将已经生成的两组 ResearchBundle 和执行设置写入评估输入，核验器负责比较合同、文件哈希及评分关联。
+`scripts/run-benchmark.ts` 已接入真实PiKernel与研究链路，运行接口只接收公开案例与执行设置，不接收隐藏标签和人工评分表。单Agent保留并恢复同一Pi会话，阶段工具权限按同样规则更新；四Agent隔离会话。相同上下文和图像上限适用于双方，达到限制时记录缺口。当前尚无完成科学验收的真实配对记录。
 
 ## 隐藏参考集和人工评审
 
@@ -22,8 +22,11 @@
 
 ```powershell
 node --import tsx scripts/benchmark.ts init work/benchmark/assessment.json
+node --import tsx scripts/run-benchmark.ts run work/benchmark/runs config.local.json strong 2026-10-13
 node --import tsx scripts/benchmark.ts evaluate work/benchmark/assessment.json work/benchmark/results
 ```
+
+`run` 会实际启动四个案例的两组研究，共八次运行，每次使用配置中的完整预算；运行前先封存参考集并核对预算。成功回执写入receipts.json，人工评分仍须单独填入评估输入。相同目录和设置可恢复未完成部分；已完成文件重新核对指纹后复用。不要在生产任务运行期间同时启动此基准。
 
 模板没有成绩。缺少评分人、来源哈希、隐藏拆分声明、配对运行、完整核心论断评分或源文件时，评估退出并输出 `not_evaluated`，不会计算分数。
 
