@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {join} from 'node:path';
+import {exportBundle} from '../src/research/exports.ts';
+import {importPdf} from '../src/research/imports.ts';
+import {dedupePapers} from '../src/research/sources.ts';
+import type {ResearchBundle,Paper} from '../src/shared/types.ts';
+
+const enabled=process.env.PI_EXPORT_QA==='1';
+test('export all report formats and import PDF page locators with configured runtime',{skip:!enabled},async()=>{
+  const pythonPath=process.env.PI_PYTHON_PATH!;const fontPath=process.env.PI_FONT_PATH!;assert.ok(pythonPath&&fontPath,'Provide PI_PYTHON_PATH and PI_FONT_PATH');
+  const outDir=join(process.cwd(),'work','export-fixture');await mkdir(outDir,{recursive:true});
+  const probe=JSON.parse(await readFile(join(process.cwd(),'work/live-probe/probe.json'),'utf8')) as {papers:Paper[];sources:any[]};const papers=dedupePapers(probe.papers.slice(0,5));
+  const bundle:ResearchBundle={runId:'export-format-validation',spec:{topic:'文献调研系统导出版式验证',sources:['pubmed','europepmc','openalex','crossref'],cutoffDate:'2026-10-13',language:'zh',modelProfile:'no-model-called',budget:{maxRequests:1,maxTokens:1,maxMinutes:1},scopeVersion:1,maxRepairRounds:3},scope:{interpretation:'本报告验证中文文字、引用、范式比较表和多格式附件的生成与显示。文献题录来自实际公开接口检索；未进行模型研究或科学质量评估。',questions:[],inclusion:['仅取实时连接检查中的前五条题录用于排版'],exclusion:['其他记录不进入排版样本'],assumptions:['版式检查不能证明科学结论正确']},papers,searches:probe.sources,screening:papers.map(p=>({paperId:p.id,decision:'include',reason:'导出版式样本，未作研究筛选'})),documents:[],evidence:[],claims:[],paradigms:[{id:'layout-test',name:'候选因素发现与验证流程 示例结构',question:'如何在报告中区分实际研究步骤与待验证的研究建议',models:'按原始研究报告填写人群、样本、细胞、动物或数据集。当前行仅作版式示例。',steps:[{text:'系统展示来源可追溯的步骤；此处不代表任何论文实际完成该步骤。',evidenceIds:[],spanIds:[],inferred:true}],controls:'记录原始研究使用的对照与替代解释。',readouts:'记录结果读出、效应量、不确定性与统计方法。',validation:'原始研究未完成的验证仍标为待验证。',inferenceBoundary:'当前范式条目用于输出结构检查，不支持科学推断。',limitations:'此测试没有证据抽取、模型调用或独立人工科学审查。',representativePaperIds:papers.slice(0,2).map(p=>p.id),maturity:'emerging'}],sections:[{title:'导出目的与检查范围',paragraphs:[{text:'这份报告用于检查系统输出格式。中文和英文题录应保持可读，表格应自动换行，参考文献编号应在 HTML、DOCX 和 PDF 中一致。报告包含真实检索日志，但没有对论文进行研究层面的提取、综合或审计。',claimIds:[]}]},{title:'领域地图与证据边界',paragraphs:[{text:'正式研究报告将按主题解释概念、机制、研究模型、测量技术、应用、争议与转化障碍。每项核心论断需要关联具体实验或分析、所属研究、论文和原文位置。只有摘要时，方法与结果中的未知项保留为不可获取，不能从常识中补写。',claimIds:[]},{text:'同一论文的多源记录需要去重，同一研究的多篇报告需要另行判断。论文数量和来源数量反映检索过程，不能替代覆盖充分性。未获取全文、图像未实际查看、出版后更新查询失败等情况，都影响报告能够支持的结论。',claimIds:[]}]},{title:'研究范式表达',paragraphs:[{text:'研究范式应总结问题、模型、流程、对照、验证、读出、分析方法和推断边界。若报告提出尚未完成的研究环节，必须把建议与原论文完成的步骤区分开。一次探索性发现不能直接归纳为稳定的研究路线。',claimIds:[]}]}],findings:[],gaps:['本文件是输出格式检查样本，科学验收尚未开展。','样本题录未经身份核验，因此 references.bib 不会包含这些记录。','本次检索每个来源最多十条，分页不完整；不能作为完整背景调研。'],status:'completed_with_gaps',usage:{requests:0,tokens:0,costUsd:0,unknownRequests:0},coverage:[]};
+  const manifest=await exportBundle(bundle,outDir,{pythonPath,fontPath});assert.equal(manifest.files.length,13);for(const f of manifest.files)assert.ok(f.size>=0);
+  for(const name of ['report.html','report.docx','report.pdf','references.bib','research.json','candidate-papers.csv','evidence.csv','searches.csv','screening.csv','audit.csv','paradigms.csv','coverage.csv','fulltext-gaps.json'])assert.ok(manifest.files.some(f=>f.name===name));
+  const pdf=await importPdf(join(outDir,'report.pdf'),{id:'format-qa-pdf',source:'import',title:'导出版式验证',authors:[],identityVerified:false},join(process.cwd(),'work','pdf-import-qa'),pythonPath);
+  assert.equal(pdf.format,'pdf');assert.equal(pdf.parsing,'parsed');assert.ok(pdf.spans.some(s=>s.kind==='image'));assert.ok(pdf.spans.some(s=>s.kind==='fulltext'&&s.text.includes('文献调研')));assert.equal(pdf.visualVerified,false);await writeFile(join(outDir,'pdf-import-validation.json'),JSON.stringify({hash:pdf.hash,pages:pdf.spans.filter(s=>s.kind==='image').length,textSpans:pdf.spans.filter(s=>s.kind==='fulltext').length,visualVerified:pdf.visualVerified},null,2));
+});

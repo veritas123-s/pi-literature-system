@@ -1,0 +1,15 @@
+# Reviewable snippet only. Place inside the existing HTTPS site block after reviewing route order.
+# Do not replace the existing Caddyfile or remove any existing service routes.
+redir /literature /literature/ 308
+handle_path /literature/api/* {
+    request_body {
+        max_size 100MB
+    }
+    reverse_proxy 127.0.0.1:4326
+}
+# Optional server-hosted frontend. For GitHub Pages, omit this block and use the Pages URL.
+# handle_path /literature/* {
+#     root * C:\ProgramData\PiLiteratureCloud\web
+#     try_files {path} /index.html
+#     file_server
+# }

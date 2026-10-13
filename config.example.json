@@ -1,0 +1,25 @@
+{
+  "dataDir": "./runtime/worker",
+  "cloudUrl": "https://YOUR-CLOUD/literature",
+  "workerId": "COPY-ONCE-PAIRED-WORKER-ID",
+  "workerTokenEnv": "PI_LITERATURE_WORKER_TOKEN",
+  "modelProfiles": {
+    "strong": {
+      "provider": "codex-cli",
+      "model": "gpt-6.1-sol",
+      "apiKeyEnv": "",
+      "contextWindow": 200000,
+      "maxOutputTokens": 12000,
+      "reasoning": "high"
+    }
+  },
+  "defaultBudget": {
+    "maxTokens": 2000000,
+    "maxRequests": 200,
+    "maxMinutes": 240
+  },
+  "maxConcurrency": 3,
+  "pythonPath": "PATH-TO-PYTHON",
+  "fontPath": "C:/Windows/Fonts/simhei.ttf",
+  "requestTimeoutMs": 30000
+}
